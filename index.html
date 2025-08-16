@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'" />
+    <meta http-equiv="X-Content-Security-Policy" content="default-src 'self'; script-src 'self'" />
+    <link rel="stylesheet" href="index.css" />
+    <title>Tickets SISI | Carga de turnos</title>
+</head>
+
+<body>
+    <!-- <p>Current theme source: <strong id="theme-source">System</strong></p> -->
+
+    <!-- <button id="toggle-dark-mode">Toggle Dark Mode</button> -->
+    <!-- <button id="reset-to-system">Reset to System Theme</button> -->
+    <div id="toastContainer"></div>
+    <h1>Tickets SISI</h1>
+    <p>Proceso de carga de turnos (Operativos | No Operativos)</p>
+    <form id="excelForm">
+        <div class="dropzone" id="dropzone">
+            Arrastra tu archivo <strong>.xlsx</strong> aquí o
+            <label for="fileInput" class="btn" style="color:blue;cursor:pointer;">selecciónalo</label>
+            <input id="fileInput" type="file" accept=".xlsx" />
+            <div id="fileName"></div>
+        </div>
+
+        <br>
+
+        <!-- Switch Operativo / No Operativo -->
+        <label class="switch">
+            <input type="checkbox" id="tipoTurno" checked />
+            <span class="slider"></span>
+            <span class="switch-label">Operativo</span>
+        </label>
+
+        <br><br>
+
+        <button class="success-btn" type="submit">Cargar Turno</button>
+    </form>
+
+    <div class="chips-header">
+        <strong>Backups disponibles</strong>
+        <!-- <button id="refreshBackups" type="button" class="btn small">Refrescar</button> -->
+    </div>
+    <div id="backupChips" class="chips"></div>
+
+    <button class="btn" id="backup">Generar Backup</button>
+    </br>
+
+    <div id="terminal" class="terminal"></div>
+</body>
+<script src="rendered.js"></script>
+
+</html>
