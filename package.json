@@ -26,5 +26,28 @@
     "electron": "^37.2.6",
     "electron-builder": "^26.0.12",
     "standard": "^17.1.2"
+  },
+  "build": {
+    "publish": {
+      "provider": "github"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    }
   }
 }
