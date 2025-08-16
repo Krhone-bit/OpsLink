@@ -28,28 +28,34 @@
     "standard": "^17.1.2"
   },
   "build": {
+    "appId": "com.k2.ticketsssh",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "publish": {
       "provider": "github"
     },
-    "generateUpdatesFiles": false,
     "linux": {
       "target": [
         "AppImage",
         "deb"
       ],
-      "category": "Utility"
+      "category": "Utility",
+      "maintainer": "Krhone-bit <alvaroupeu@gmail.com>",
+      "icon": "build/icons"
     },
     "mac": {
       "target": [
         "dmg",
         "zip"
-      ]
+      ],
+      "category": "public.app-category.utilities",
+      "icon": "build/icons/icon.icns"
     },
     "win": {
       "target": [
         "nsis",
         "zip"
-      ]
+      ],
+      "icon": "build/icons/icon.ico"
     }
   }
 }
