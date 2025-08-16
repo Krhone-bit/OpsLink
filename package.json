@@ -31,6 +31,7 @@
     "publish": {
       "provider": "github"
     },
+    "generateUpdatesFiles": false,
     "linux": {
       "target": [
         "AppImage",
