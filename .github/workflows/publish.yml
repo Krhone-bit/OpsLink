@@ -45,6 +45,23 @@ jobs:
       - name: Install deps
         run: npm ci
 
+      - name: Generate prod-config.js
+        shell: bash
+        run: |
+          mkdir -p config
+          cat > config/prod-config.js << 'EOF'
+          module.exports = {
+          APP_DIR: process.env.APP_DIR,
+          VENV_PY: process.env.VENV_PY,
+          DJANGO_SETTINGS_MODULE: process.env.DJANGO_SETTINGS_MODULE,
+          DB_HOST: process.env.DB_HOST,
+          DB_USERNAME: process.env.DB_USERNAME,
+          DB_PASSWORD: process.env.DB_PASSWORD,
+          DB_NAME: process.env.DB_NAME,
+          REMOTE_HOST: process.env.REMOTE_HOST
+          };
+          EOF
+
       - name: Build/release Electron app
         uses: samuelmeuli/action-electron-builder@v1
         with:

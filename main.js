@@ -3,17 +3,31 @@ const { app, BrowserWindow, ipcMain, nativeTheme } = require("electron/main");
 const os = require("node:os");
 const { spawn } = require("node:child_process");
 const path = require("node:path");
-process.loadEnvFile();
+if (!app.isPackaged) {
+  const devEnv = path.join(__dirname, ".env");
+  if (fs.existsSync(devEnv)) {
+    // Si usabas process.loadEnvFile:
+    process.loadEnvFile(devEnv);
+  }
+}
 
-const appDir = process.env.APP_DIR;
-const activate = process.env.VENV_PY;
-const dsm = process.env.DJANGO_SETTINGS_MODULE;
-const dbHost = process.env.DB_HOST;
-const dbUsername = process.env.DB_USERNAME;
-const dbPassword = process.env.DB_PASSWORD;
-const dbName = process.env.DB_NAME;
+let PROD = {};
+try {
+  // este archivo lo generas en CI antes del build
+  PROD = require("./config/prod-config.js");
+} catch {
+  /* si no está, seguimos con process.env */
+}
+
+const appDir = process.env.APP_DIR || PROD.APP_DIR;
+const activate = process.env.VENV_PY || PROD.VENV_PY;
+const dsm = process.env.DJANGO_SETTINGS_MODULE || PROD.DJANGO_SETTINGS_MODULE;
+const dbHost = process.env.DB_HOST || PROD.DB_HOST;
+const dbUsername = process.env.DB_USERNAME || PROD.DB_USERNAME;
+const dbPassword = process.env.DB_PASSWORD || PROD.DB_PASSWORD;
+const dbName = process.env.DB_NAME || PROD.DB_NAME;
 const venv = `source ${activate} && cd ${appDir} && export PYTHONPATH=${appDir} && export DJANGO_SETTINGS_MODULE=${dsm} && `;
-const remoteHost = process.env.REMOTE_HOST;
+const remoteHost = process.env.REMOTE_HOST || PROD.REMOTE_HOST;
 const year = new Date().getFullYear();
 const month = String(new Date().getMonth() + 1).padStart(2, "0");
 const day = String(new Date().getDate()).padStart(2, "0");

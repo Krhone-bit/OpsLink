@@ -1,7 +1,7 @@
 {
   "name": "ticketsssh",
   "productName": "Tickets SSH",
-  "description": "Herramienta de escritorio para subir XLSX y ejecutar tareas remotas (SSH/SCP) en K2.",
+  "description": "Herramienta de escritorio para subir XLSX y ejecutar tareas remotas (SSH/SCP)",
   "author": "Krhone-bit <alvaroupeu@gmail.com>",
   "license": "MIT",
   "version": "1.0.0",
