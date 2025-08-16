@@ -36,7 +36,8 @@
       "target": [
         "AppImage",
         "deb"
-      ]
+      ],
+      "category": "Utility"
     },
     "mac": {
       "target": [
