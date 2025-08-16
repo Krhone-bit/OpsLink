@@ -6,6 +6,7 @@
   "license": "MIT",
   "version": "1.0.0",
   "main": "main.js",
+  "email": "alvaroupeu@gmail.com",
   "config": {
     "forge": "./forge.config.js"
   },
