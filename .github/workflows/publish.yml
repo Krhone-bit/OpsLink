@@ -1,0 +1,30 @@
+name: build-and-publish
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: prod
+    env:
+      APP_DIR: ${{ secrets.APP_DIR }}
+      VENV_PY: ${{ secrets.VENV_PY }}
+      DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_USERNAME: ${{ secrets.DB_USERNAME }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+
+      # Publicar (ej. GitHub Releases con electron-builder)
+      - run: npm run publish
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}

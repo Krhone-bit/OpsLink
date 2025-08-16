@@ -158,6 +158,19 @@ form?.addEventListener("submit", async (e) => {
   }
 });
 
+document.addEventListener("DOMContentLoaded", () => {
+  const chk = document.getElementById("tipoTurno");
+  const lbl = document.querySelector(".switch-label");
+
+  if (chk && lbl) {
+    const updateLabel = () => {
+      lbl.textContent = chk.checked ? "Operativo" : "No Operativo";
+    };
+    chk.addEventListener("change", updateLabel);
+    updateLabel(); // inicializa según estado
+  }
+});
+
 async function loadBackups() {
   if (!chipsEl) return;
   chipsEl.innerHTML = '<div class="chip loading">Cargando…</div>';
@@ -172,20 +185,30 @@ async function loadBackups() {
     }
 
     for (const name of resp.files) {
-      const chip = document.createElement("button");
-      chip.type = "button";
+      const chip = document.createElement("div");
       chip.className = "chip";
-      chip.textContent = name;
 
-      chip.addEventListener("click", async () => {
-        try {
-          await navigator.clipboard?.writeText(name);
-          showToast("Nombre de backup copiado ✅", "success");
-        } catch {
-          showToast(name, "success"); // fallback: mostramos el nombre
+      const span = document.createElement("span");
+      span.textContent = name;
+
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "✕";
+      delBtn.className = "delete-btn";
+      delBtn.addEventListener("click", async (e) => {
+        e.stopPropagation(); // evita copiar al clipboard
+        if (!confirm(`¿Eliminar backup ${name}?`)) return;
+
+        const res = await window.electronAPI.deleteBackup(name);
+        if (res.status === "ok") {
+          showToast("Backup eliminado ✅", "success");
+          loadBackups(); // refrescar lista
+        } else {
+          showToast(res.message || "Error eliminando backup");
         }
       });
 
+      chip.appendChild(span);
+      chip.appendChild(delBtn);
       chipsEl.appendChild(chip);
     }
   } catch (e) {

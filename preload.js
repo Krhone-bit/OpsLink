@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   runProcess: (data) => ipcRenderer.invoke("run-process", data),
   backup: () => ipcRenderer.invoke("backup"),
   listBackups: () => ipcRenderer.invoke("list-backups"),
+  deleteBackup: (fileName) => ipcRenderer.invoke("delete-backup", fileName),
+
   onProcessLog: (cb) => {
     const listener = (_e, payload) => cb(payload);
     ipcRenderer.on("process-log", listener);

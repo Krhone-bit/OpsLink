@@ -18,6 +18,7 @@ const year = new Date().getFullYear();
 const month = String(new Date().getMonth() + 1).padStart(2, "0");
 const day = String(new Date().getDate()).padStart(2, "0");
 const backupCommand = `PGPASSWORD=${dbPassword} pg_dump -h ${dbHost} -U ${dbUsername} -d ${dbName} --no-owner --no-privileges --file=~/backup-${year}-${month}-${day}.sql`;
+
 let mainWindow; // <-- referencia global
 
 const createWindow = () => {
@@ -223,13 +224,12 @@ ipcMain.handle("run-process", async (event, { fileName, operativo }) => {
 ipcMain.handle("backup", async (event) => {
   const wc = event.sender;
   try {
-    console.log(backupCommand);
-    // await runWithLogs(
-    //   "ssh",
-    //   ["-t", remoteHost, "bash", "-i", "-c", `"${backupCommand}"`],
-    //   {},
-    //   wc
-    // );
+    await runWithLogs(
+      "ssh",
+      ["T", remoteHost, "bash", "-lc", `"${backupCommand}"`],
+      {},
+      wc
+    );
     return { status: "ok", message: "Backup realizado con éxito" };
   } catch (err) {
     sendLog("stderr", err?.message || String(err), wc);
@@ -271,5 +271,19 @@ ipcMain.handle("list-backups", async () => {
     return { status: "ok", files };
   } catch (err) {
     return { status: "error", message: err?.message || String(err), files: [] };
+  }
+});
+
+// --- eliminar backup remoto ---
+ipcMain.handle("delete-backup", async (_event, fileName) => {
+  if (!fileName)
+    return { status: "error", message: "No se especificó archivo" };
+
+  const script = `"rm -f ~/${fileName}"`;
+  try {
+    await runWithLogs("ssh", ["-T", remoteHost, "bash", "-lc", script]);
+    return { status: "ok", file: fileName };
+  } catch (err) {
+    return { status: "error", message: err?.message ?? String(err) };
   }
 });
