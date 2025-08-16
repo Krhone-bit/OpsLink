@@ -4,6 +4,9 @@ on:
     tags:
       - "v*.*.*"
 
+permissions:
+  contents: write
+
 jobs:
   release:
     environment: prod
@@ -11,7 +14,13 @@ jobs:
 
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            publish: true
+          - os: macos-latest
+            publish: false
+          - os: windows-latest
+            publish: false
 
     env:
       APP_DIR: ${{ secrets.APP_DIR }}
@@ -35,10 +44,6 @@ jobs:
 
       - name: Install deps
         run: npm ci
-
-      - name: Install snapcraft
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo snap install snapcraft --classic
 
       - name: Build/release Electron app
         uses: samuelmeuli/action-electron-builder@v1
