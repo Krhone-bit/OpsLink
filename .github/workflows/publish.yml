@@ -62,11 +62,22 @@ jobs:
           };
           EOF
 
-      - name: Sync package.json version with tag
-        if: startsWith(github.ref, 'refs/tags/v')
+      # PowerShell para Windows
+      - name: Sync package.json version with tag (Windows)
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'windows-latest'
+        shell: pwsh
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"   # v1.7.0
-          VER="${TAG#v}"                   # 1.7.0
+          $tag = "${env:GITHUB_REF}".Replace('refs/tags/','')   # v1.7.0
+          $ver = $tag.TrimStart('v')                            # 1.7.0
+          npm version $ver --no-git-tag-version
+
+      # Bash para Mac/Linux
+      - name: Sync package.json version with tag (*nix)
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VER="${TAG#v}"
           npm version "$VER" --no-git-tag-version
 
       - name: Build/release Electron app
