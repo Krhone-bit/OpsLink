@@ -6,6 +6,7 @@ const backupBtn = document.getElementById("backup");
 const termEl = document.getElementById("terminal");
 const submitBtn = document.querySelector(".success-btn");
 const chipsEl = document.getElementById("backupChips");
+const clearCacheBtn = document.getElementById("clearCache");
 
 let selectedFileName = null;
 
@@ -83,6 +84,30 @@ backupBtn?.addEventListener("click", async (e) => {
     backupBtn.textContent = originalText;
   }
 });
+
+// Limpiar caché (si existe)
+clearCacheBtn?.addEventListener("click", async () => {
+  clearCacheBtn.disabled = true;
+  clearCacheBtn.setAttribute("aria-busy", "true");
+  const originalText = clearCacheBtn.textContent;
+  clearCacheBtn.textContent = "Limpiando...";
+  try {
+    const resp = await window.electronAPI.clearCache();
+    if (resp?.status === "error") {
+      showToast(resp.message);
+    } else {
+      showToast("Caché limpiada con éxito ✅", "success");
+    }
+  } catch (err) {
+    showToast(err?.message || "Error desconocido");
+  } finally {
+    clearCacheBtn.disabled = false;
+    clearCacheBtn.removeAttribute("aria-busy");
+    clearCacheBtn.textContent = originalText;
+  }
+});
+
+// Función para agregar logs a la terminal
 
 function appendLog(text, stream = "stdout") {
   if (!termEl) return;

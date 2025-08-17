@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   backup: () => ipcRenderer.invoke("backup"),
   listBackups: () => ipcRenderer.invoke("list-backups"),
   deleteBackup: (fileName) => ipcRenderer.invoke("delete-backup", fileName),
+  clearCache: () => ipcRenderer.invoke("clear-cache"),
 
   onProcessLog: (cb) => {
     const listener = (_e, payload) => cb(payload);

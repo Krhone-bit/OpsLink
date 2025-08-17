@@ -3,6 +3,7 @@ const { app, BrowserWindow, ipcMain, nativeTheme } = require("electron/main");
 const os = require("node:os");
 const { spawn } = require("node:child_process");
 const path = require("node:path");
+const fs = require("node:fs");
 if (!app.isPackaged) {
   const devEnv = path.join(__dirname, ".env");
   if (fs.existsSync(devEnv)) {
@@ -31,7 +32,7 @@ const remoteHost = process.env.REMOTE_HOST || PROD.REMOTE_HOST;
 const year = new Date().getFullYear();
 const month = String(new Date().getMonth() + 1).padStart(2, "0");
 const day = String(new Date().getDate()).padStart(2, "0");
-const backupCommand = `PGPASSWORD=${dbPassword} pg_dump -h ${dbHost} -U ${dbUsername} -d ${dbName} --no-owner --no-privileges --file=~/backup-${year}-${month}-${day}.sql`;
+const backupCommand = `PGPASSWORD=${dbPassword} pg_dump -h ${dbHost} -U ${dbUsername} -d ${dbName} --no-owner --no-privileges > ~/backup-${year}-${month}-${day}.sql`;
 
 let mainWindow; // <-- referencia global
 
@@ -240,7 +241,7 @@ ipcMain.handle("backup", async (event) => {
   try {
     await runWithLogs(
       "ssh",
-      ["T", remoteHost, "bash", "-lc", `"${backupCommand}"`],
+      ["-T", remoteHost, "bash", "-lc", `"${backupCommand}"`],
       {},
       wc
     );
@@ -297,6 +298,17 @@ ipcMain.handle("delete-backup", async (_event, fileName) => {
   try {
     await runWithLogs("ssh", ["-T", remoteHost, "bash", "-lc", script]);
     return { status: "ok", file: fileName };
+  } catch (err) {
+    return { status: "error", message: err?.message ?? String(err) };
+  }
+});
+
+// --- Limpiar caché de la app ---
+ipcMain.handle("clear-cache", async (_event) => {
+  const script = `"${venv} django-admin shell -c 'from business_logic.redis import r; r.flushdb(asynchronous=True)'"`;
+  try {
+    await runWithLogs("ssh", ["-T", remoteHost, "bash", "-lc", script]);
+    return { status: "ok", message: "Caché limpiada" };
   } catch (err) {
     return { status: "error", message: err?.message ?? String(err) };
   }
