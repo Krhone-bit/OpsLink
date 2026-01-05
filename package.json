@@ -17,7 +17,14 @@
     "publish": "electron-forge publish",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "electron",
+    "ssh",
+    "scp",
+    "xlsx",
+    "automation",
+    "desktop-app"
+  ],
   "devDependencies": {
     "@electron-forge/cli": "^7.8.3",
     "@electron-forge/maker-squirrel": "^7.8.3",
