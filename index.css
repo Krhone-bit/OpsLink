@@ -321,6 +321,43 @@ input[type="file"] {
   transform: none;
 }
 
+#clearCache.btn {
+  appearance: none;
+  border: 0;
+  color: var(--btn-text);
+  background-image: linear-gradient(180deg, var(--btn-bg-1), var(--btn-bg-2));
+  padding: 10px 16px;
+  border-radius: 9999px; /* pill */
+  font:
+    600 14px/1 system-ui,
+    sans-serif;
+  letter-spacing: 0.2px;
+  box-shadow: var(--btn-shadow);
+  cursor: pointer;
+  transition:
+    transform 0.08s ease,
+    filter 0.15s ease,
+    box-shadow 0.2s ease;
+}
+
+#clearCache.btn:hover {
+  filter: brightness(1.05);
+}
+#clearCache.btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+#clearCache.btn:focus-visible {
+  outline: 0;
+  box-shadow: var(--btn-ring);
+}
+
+#clearCache.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
 /* Spinner cuando está ocupado */
 #backup[aria-busy="true"] {
   position: relative;
@@ -331,6 +368,23 @@ input[type="file"] {
   color: transparent; /* oculta el texto mientras gira */
 }
 #backup[aria-busy="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-top-color: #fff;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+#clearCache[aria-busy="true"]::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -376,6 +430,11 @@ input[type="file"] {
 }
 .danger-btn:hover {
   background-color: #c0392b;
+}
+
+.danger-btn.small {
+  padding: 6px 10px;
+  font-size: 12px;
 }
 
 .divider {
