@@ -149,13 +149,13 @@ ipcMain.handle("run-process", async (event, { fileName, operativo }) => {
   const localPath = path.join(os.homedir(), "Downloads", fileName);
   sendLog("stdout", `Ruta local del archivo: ${localPath}`, wc);
 
+  const remoteDirectory = "~/k2-backend/app";
   try {
     // 1) Subir archivo
-    const remoteDirOperativo = "~/k2-backend/app/files";
-    const remoteDirNoOper = "~/k2-backend/app";
-    const remoteDir = operativo ? remoteDirOperativo : remoteDirNoOper;
+    // const remoteDirOperativo = "~/k2-backend/app/files";
+    // const remoteDir = operativo ? remoteDirOperativo : remoteDirNoOper;
 
-    await runWithLogs("scp", [localPath, `${remoteHost}:${remoteDir}`], {}, wc);
+    await runWithLogs("scp", [localPath, `${remoteHost}:${remoteDirectory}`], {}, wc);
     if (operativo) {
       sendLog("stdout", "Archivo subido correctamente (Operativo)", wc);
       await runWithLogs(
@@ -166,7 +166,9 @@ ipcMain.handle("run-process", async (event, { fileName, operativo }) => {
           "bash",
           "-lc",
           // habilita expansión de alias y carga .bashrc antes de usar 'venv'
-          `"${venv} django-admin load_daily_turns"`,
+          `"${venv} django-admin load_daily_turns --route=${escapeShellArg(
+            fileName
+          )}"`,
         ],
         {},
         wc
@@ -207,7 +209,7 @@ ipcMain.handle("run-process", async (event, { fileName, operativo }) => {
           remoteHost,
           "bash",
           "-lc", // login shell no interactiva
-          `"cd ~/k2-backend/app/files && rm ${escapeShellArg(fileName)}"`,
+          `"cd ${remoteDirectory} && rm ${escapeShellArg(fileName)}"`,
         ],
         {},
         wc
@@ -226,7 +228,7 @@ ipcMain.handle("run-process", async (event, { fileName, operativo }) => {
           remoteHost,
           "bash",
           "-lc",
-          `"cd ~/k2-backend/app && rm ${escapeShellArg(fileName)}"`,
+          `"cd ${remoteDirectory} && rm ${escapeShellArg(fileName)}"`,
         ],
         {},
         wc

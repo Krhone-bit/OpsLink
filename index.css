@@ -326,6 +326,10 @@ input[type="file"] {
   position: relative;
   color: transparent; /* oculta el texto mientras gira */
 }
+#clearCache[aria-busy="true"] {
+  position: relative;
+  color: transparent; /* oculta el texto mientras gira */
+}
 #backup[aria-busy="true"]::after {
   content: "";
   position: absolute;
@@ -364,6 +368,11 @@ input[type="file"] {
   padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
+}
+.danger-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 .danger-btn:hover {
   background-color: #c0392b;

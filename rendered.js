@@ -74,6 +74,7 @@ backupBtn?.addEventListener("click", async (e) => {
       showToast(resp.message);
     } else {
       showToast("Backup realizado con éxito ✅", "success");
+      loadBackups(); // refrescar lista
     }
   } catch (err) {
     showToast(err?.message || "Error desconocido");
