@@ -1,58 +1,265 @@
 <!DOCTYPE html>
-<html>
+<html class="light" lang="es">
 
 <head>
-    <meta charset="UTF-8" />
-    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'" />
-    <meta http-equiv="X-Content-Security-Policy" content="default-src 'self'; script-src 'self'" />
-    <link rel="stylesheet" href="index.css" />
-    <title>Tickets SISI | Carga de turnos</title>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Tickets SISI Management Dashboard</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+        rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#4F46E5", // Modern Indigo
+                        "background-light": "#F8FAFC",
+                        "background-dark": "#0F172A",
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#1E293B",
+                        "success": "#3DB76E",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.75rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    animation: {
+                        'fade-in-up': 'fadeInUp 0.3s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                },
+            },
+        };
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .terminal-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .terminal-scroll::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        .terminal-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        .terminal-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24
+        }
+
+        select {
+            appearance: none;
+            background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuBxt0MiRtZR_cy1UCI_nrYRzn8asqkQnB-llSbud4QUanGTntB_uRJjKp5U8yk17Mw6GerUKE1UqW8gpbyEA30-6kWnh0zII9GkYs00ChXsqEvx7R9tjXcJKngpeOMJmF_DtN6cjX7oDHbNyKR-ssmHlLaPC-c5CAn01G08n90nMJuwoGxZ5SLZcKZrbvfNFvuPuYky469UQAEK6aHBhWgipInh-nc8nw4Dy_-neREme10NyuvH5SI4oxrglns2o33Uam0GsgcNdEY);
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem
+        }
+
+        .excel-grid::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        .excel-grid::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .dark .excel-grid::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        .excel-grid::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 5px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+
+        .dark .excel-grid::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+
+        .spreadsheet-table th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .spreadsheet-table td:first-child,
+        .spreadsheet-table th:first-child {
+            position: sticky;
+            left: 0;
+            z-index: 20;
+        }
+
+        .spreadsheet-table th:first-child {
+            z-index: 30;
+        }
+
+        .excel-grid::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        .excel-grid::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .dark .excel-grid::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        .excel-grid::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 5px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+
+        .dark .excel-grid::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+
+        .spreadsheet-table th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .calendar-month-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+        }
+
+        .calendar-day-cell {
+            min-height: 110px;
+            transition: all 0.2s ease;
+        }
+
+        .calendar-day-cell:hover {
+            background-color: rgba(79, 70, 229, 0.03);
+        }
+
+        .dark .calendar-day-cell:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .shift-icon {
+            font-size: 14px !important;
+        }
+
+        .indicator-existente {
+            color: #4F46E5;
+        }
+
+        .indicator-nuevo {
+            color: #F59E0B;
+        }
+
+        .indicator-conflicto {
+            color: #EF4444;
+        }
+
+        .detail-card {
+            border-left: 4px solid transparent;
+        }
+
+        .autofocus-badge {
+            animation: pulse-soft 2s infinite;
+        }
+
+        @keyframes pulse-soft {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+    </style>
 </head>
 
-<body>
-    <!-- <p>Current theme source: <strong id="theme-source">System</strong></p> -->
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex">
 
-    <!-- <button id="toggle-dark-mode">Toggle Dark Mode</button> -->
-    <!-- <button id="reset-to-system">Reset to System Theme</button> -->
-    <div id="toastContainer"></div>
-    <h1>Tickets SISI</h1>
-    <p>Proceso de carga de turnos (Operativos | No Operativos)</p>
-    <form id="excelForm">
-        <div class="dropzone" id="dropzone">
-            Arrastra tu archivo <strong>.xlsx</strong> aquí o
-            <label for="fileInput" class="btn" style="color:blue;cursor:pointer;">selecciónalo</label>
-            <input id="fileInput" type="file" accept=".xlsx" />
-            <div id="fileName"></div>
-        </div>
+    <app-sidebar></app-sidebar>
 
-        <br>
+    <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <app-header></app-header>
 
-        <!-- Switch Operativo / No Operativo -->
-        <label class="switch">
-            <input type="checkbox" id="tipoTurno" checked />
-            <span class="slider"></span>
-            <span class="switch-label">Operativo</span>
-        </label>
+        <!-- Dynamic Content Area -->
+        <dashboard-view id="main-view" class="flex-1 overflow-hidden flex flex-col"></dashboard-view>
 
-        <br><br>
+        <app-footer></app-footer>
+    </main>
 
-        <button class="success-btn" type="submit">Cargar Turno</button>
-    </form>
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-2"></div>
 
-    <div class="chips-header">
-        <strong>Backups disponibles</strong>
-        <!-- <button id="refreshBackups" type="button" class="btn small">Refrescar</button> -->
-    </div>
-    <div id="backupChips" class="chips"></div>
+    <!-- Component Imports -->
+    <script type="module" src="./js/utils.js"></script>
+    <script type="module" src="./js/components/Sidebar.js"></script>
+    <script type="module" src="./js/components/Header.js"></script>
+    <script type="module" src="./js/components/Footer.js"></script>
+    <script type="module" src="./js/views/Dashboard.js"></script>
+    <script type="module" src="./js/views/Settings.js"></script>
+    <script type="module" src="./js/views/Uploads.js"></script>
 
-    <div class="divider">
-        <button class="btn" id="backup">Generar Backup</button>
-        <button class="danger-btn" id="clearCache">Limpiar Caché</button>
-    </div>
+    <script>
+        const mainViewContainer = document.querySelector('main');
+        const sidebar = document.querySelector('app-sidebar');
+        let currentView = document.getElementById('main-view');
 
-    <div id="terminal" class="terminal"></div>
+        sidebar.addEventListener('navigate', (e) => {
+            const viewName = e.detail.view;
+            if (currentView.tagName.toLowerCase() === viewName) return;
+
+            // Remove old view (cleanup is automatic via disconnectedCallback if implemented)
+            currentView.remove();
+
+            // Create new view
+            const newView = document.createElement(viewName);
+            newView.id = "main-view";
+            newView.className = "flex-1 overflow-hidden flex flex-col";
+
+            // Insert before footer (last child of main is footer? No, header is first, footer is last)
+            // Structure is Header -> View -> Footer. So insert after Header.
+            const header = document.querySelector('app-header');
+            header.after(newView);
+
+            currentView = newView;
+        });
+    </script>
 </body>
-<script src="rendered.js"></script>
 
 </html>

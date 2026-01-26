@@ -64,5 +64,12 @@
       ],
       "icon": "build/icons/icon.ico"
     }
+  },
+  "dependencies": {
+    "dayjs": "^1.11.19",
+    "xlsx": "^0.18.5",
+    "pg": "^8.16.3",
+    "ssh-config": "^5.0.3",
+    "tunnel-ssh": "^5.2.0"
   }
 }
