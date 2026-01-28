@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   backup: (host, rootPath, environmentPath, settingsModule) => ipcRenderer.invoke("backup", host, rootPath, environmentPath, settingsModule),
   listBackups: (host) => ipcRenderer.invoke("list-backups", host),
   deleteBackup: (fileName, host) => ipcRenderer.invoke("delete-backup", fileName, host),
+  downloadBackup: (fileName, host) => ipcRenderer.invoke("download-backup", fileName, host),
   clearCache: (host, rootPath, environmentPath, settingsModule) => ipcRenderer.invoke("clear-cache", host, rootPath, environmentPath, settingsModule),
   readSshConfig: () => ipcRenderer.invoke("ssh-config:read"),
   testSshConnection: (host) => ipcRenderer.invoke("ssh:test", host),

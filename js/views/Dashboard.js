@@ -418,6 +418,10 @@ export class DashboardView extends HTMLElement {
                     </div>
                 `;
 
+                const actionsDiv = document.createElement("div");
+                actionsDiv.className = "flex items-center gap-2";
+
+                // Delete button
                 const delBtn = document.createElement("button");
                 delBtn.className = "p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity";
                 delBtn.innerHTML = '<span class="material-icons-round text-base">close</span>';
@@ -426,7 +430,18 @@ export class DashboardView extends HTMLElement {
                     this.showDeleteModal(name, host);
                 };
 
-                div.appendChild(delBtn);
+                // Download button
+                const downloadBtn = document.createElement("button");
+                downloadBtn.className = "p-1 text-slate-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity";
+                downloadBtn.innerHTML = '<span class="material-icons-round text-base">download</span>';
+                downloadBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.downloadBackup(name, host);
+                };
+
+                actionsDiv.appendChild(delBtn);
+                actionsDiv.appendChild(downloadBtn);
+                div.appendChild(actionsDiv);
                 chipsEl.appendChild(div);
             });
         } catch (e) {
@@ -517,6 +532,21 @@ export class DashboardView extends HTMLElement {
         });
     }
 
+    async downloadBackup(fileName, host) {
+        try {
+            showToast("Descargando backup...", "info");
+            const res = await window.electronAPI.downloadBackup(fileName, host);
+            if (res.status === 'ok') {
+                showToast(`Descarga completada: ${fileName}`, "success");
+            } else {
+                showToast(res.message || "Error en la descarga", "error");
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("Error al intentar descargar", "error");
+        }
+    }
+
     setupLogs() {
         const termEl = this.querySelector("#terminal");
         if (this.unsubscribeLogs) this.unsubscribeLogs();
@@ -524,19 +554,29 @@ export class DashboardView extends HTMLElement {
         this.unsubscribeLogs = window.electronAPI.onProcessLog(({ type, data }) => {
             if (!termEl) return;
 
+            // Handle carriage returns for progress bars (rsync/scp)
+            // We split by newline to handle separate lines
             const lines = String(data).split("\n");
-            for (const line of lines) {
-                if (!line.trim()) continue;
+
+            lines.forEach((line, index) => {
+                // If it's the last item and empty (due to trailing newline), skip unless it's the only item
+                if (index === lines.length - 1 && !line && lines.length > 1) return;
+
+                // Handle \r within the line (take the last segment)
+                const segments = line.split('\r');
+                const cleanLine = segments[segments.length - 1];
+
+                if (!cleanLine.trim()) return;
 
                 let colorClass = "text-slate-300"; // Default color
 
                 // Coloring based on content
-                const lowerLine = line.toLowerCase();
+                const lowerLine = cleanLine.toLowerCase();
 
-                let displayText = line;
+                let displayText = cleanLine;
                 if (type === "cmd") {
                     colorClass = "text-green-400 font-bold";
-                    displayText = `$ ${line}`;
+                    displayText = `$ ${cleanLine}`;
                 } else if (lowerLine.includes("error") || lowerLine.includes("exception") || lowerLine.includes("fail") || lowerLine.includes("fatal")) {
                     colorClass = "text-red-400";
                 } else if (lowerLine.includes("warn") || lowerLine.includes("warning")) {
@@ -544,15 +584,27 @@ export class DashboardView extends HTMLElement {
                 } else if (lowerLine.includes("info") || lowerLine.includes("debug")) {
                     colorClass = "text-blue-400";
                 } else if (type === "stderr") {
-                    // Fallback for stderr that isn't explicitly an error
                     colorClass = "text-yellow-200/80";
                 }
 
-                const div = document.createElement("div");
-                div.className = `flex gap-2 ${colorClass} mb-1 whitespace-pre-wrap break-all`;
-                div.textContent = displayText;
-                termEl.appendChild(div);
-            }
+                // Check if we should update the last line (for progress percentages)
+                const isProgress = /\d+%/.test(cleanLine);
+                const lastChild = termEl.lastElementChild;
+                const lastText = lastChild?.textContent || "";
+
+                // If the last line was a progress line and this one is too, replace it
+                // Or if the current chunk has multiple \r segments, it implies update
+                if (isProgress && lastChild && /\d+%/.test(lastText) && type !== "cmd") {
+                    lastChild.textContent = displayText;
+                    lastChild.className = `flex gap-2 ${colorClass} mb-1 whitespace-pre-wrap break-all`;
+                } else {
+                    const div = document.createElement("div");
+                    div.className = `flex gap-2 ${colorClass} mb-1 whitespace-pre-wrap break-all`;
+                    div.textContent = displayText;
+                    termEl.appendChild(div);
+                }
+            });
+
             termEl.scrollTop = termEl.scrollHeight;
         });
     }

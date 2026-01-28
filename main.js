@@ -307,6 +307,44 @@ ipcMain.handle("delete-backup", async (event, fileName, host) => {
   }
 });
 
+// --- descargar backup ---
+// --- descargar backup ---
+ipcMain.handle("download-backup", async (event, fileName, host) => {
+  const wc = event.sender;
+  if (!fileName)
+    return { status: "error", message: "No se especificó archivo" };
+
+  // Crear una carpeta backups en Downloads si no existe
+  const filePath = path.join(os.homedir(), "Downloads", "backups");
+  if (!fs.existsSync(filePath)) {
+    fs.mkdirSync(filePath);
+  }
+
+  try {
+    // Attempt to use rsync for progress bar support
+    let useRsync = false;
+    try {
+      await runCapture("which", ["rsync"]);
+      useRsync = true;
+    } catch (e) {
+      useRsync = false;
+    }
+
+    if (useRsync) {
+      // rsync -avP -e "ssh" host:~/file local/
+      // Note: rsync needs to run in a shell for some expansions, but here we can pass direct args
+      await runWithLogs("rsync", ["-avP", "-e", "ssh", `${host}:~/${fileName}`, filePath], {}, wc);
+    } else {
+      // Fallback to SCP (might not show progress bar if not TTY)
+      await runWithLogs("scp", [`${host}:~/${fileName}`, filePath], {}, wc);
+    }
+
+    return { status: "ok", file: fileName };
+  } catch (err) {
+    return { status: "error", message: err?.message ?? String(err) };
+  }
+});
+
 // --- limpiar cache (ej: Redis) ---
 ipcMain.handle("clear-cache", async (event, host, rootPath, environmentPath, settingsModule) => {
   const wc = event.sender;
