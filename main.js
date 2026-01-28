@@ -1,9 +1,16 @@
 // main.js
 const { app, BrowserWindow, ipcMain, nativeTheme } = require("electron/main");
 const os = require("node:os");
-const { spawn } = require("node:child_process");
+const { spawn, execSync } = require("node:child_process");
 const path = require("node:path");
 const fs = require("node:fs");
+const dayjs = require("dayjs");
+const net = require("node:net");
+const pg = require("pg");
+const fsPromises = require("node:fs/promises");
+const XLSX = require("xlsx");
+const tunnel = require("./dbTunnel");
+const dbConnect = require("./dbConect.js");
 if (!app.isPackaged) {
   const devEnv = path.join(__dirname, ".env");
   if (fs.existsSync(devEnv)) {
@@ -32,19 +39,16 @@ const remoteHost = process.env.REMOTE_HOST || PROD.REMOTE_HOST;
 const year = new Date().getFullYear();
 const month = String(new Date().getMonth() + 1).padStart(2, "0");
 const day = String(new Date().getDate()).padStart(2, "0");
-const backupCommand = `PGPASSWORD=${dbPassword} pg_dump -h ${dbHost} -U ${dbUsername} -d ${dbName} --no-owner --no-privileges > ~/backup-${year}-${month}-${day}.sql`;
 
 let mainWindow; // <-- referencia global
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
-    width: 900,
-    height: 900,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
     },
   });
-
+  mainWindow.maximize();
   mainWindow.loadFile("index.html");
 };
 
@@ -124,10 +128,14 @@ function escapeShellArg(arg) {
 }
 
 // ---------- Handler principal ----------
-ipcMain.handle("run-process", async (event, { fileName, operativo }) => {
+ipcMain.handle("run-process", async (event, { fileName, operativo, host, rootPath, environmentPath, settingsModule }) => {
   const wc = event.sender;
   if (!fileName)
     return { status: "error", message: "No se recibió el nombre de archivo" };
+
+  if (!host || !rootPath || !environmentPath || !settingsModule) {
+    return { status: "error", message: "Faltan configuraciones SSH o de proyecto." };
+  }
 
   // Normaliza y valida por seguridad (evita falsos negativos por mayúsculas/minúsculas)
   const upper = fileName.toUpperCase();
@@ -149,24 +157,24 @@ ipcMain.handle("run-process", async (event, { fileName, operativo }) => {
   const localPath = path.join(os.homedir(), "Downloads", fileName);
   sendLog("stdout", `Ruta local del archivo: ${localPath}`, wc);
 
-  const remoteDirectory = "~/k2-backend/app";
   try {
     // 1) Subir archivo
-    // const remoteDirOperativo = "~/k2-backend/app/files";
-    // const remoteDir = operativo ? remoteDirOperativo : remoteDirNoOper;
+    sendLog("stdout", `Subiendo ${fileName} a ${host}:${rootPath}/...`, wc);
+    await runWithLogs("scp", [localPath, `${host}:${rootPath}/`], {}, wc);
 
-    await runWithLogs("scp", [localPath, `${remoteHost}:${remoteDirectory}`], {}, wc);
+    // Construir el prefijo del comando remoto
+    const remoteCmdPrefix = `cd ${rootPath} && source ${environmentPath} && export PYTHONPATH=${rootPath} && export DJANGO_SETTINGS_MODULE=${settingsModule} && `;
+
     if (operativo) {
       sendLog("stdout", "Archivo subido correctamente (Operativo)", wc);
       await runWithLogs(
         "ssh",
         [
           "-T",
-          remoteHost,
+          host,
           "bash",
           "-lc",
-          // habilita expansión de alias y carga .bashrc antes de usar 'venv'
-          `"${venv} django-admin load_daily_turns --route=${escapeShellArg(
+          `"${remoteCmdPrefix} django-admin load_daily_turns --route=${escapeShellArg(
             fileName
           )}"`,
         ],
@@ -179,10 +187,10 @@ ipcMain.handle("run-process", async (event, { fileName, operativo }) => {
         "ssh",
         [
           "-T",
-          remoteHost,
+          host,
           "bash",
           "-lc",
-          `"${venv} django-admin load_daily_turns_absence --route=${escapeShellArg(
+          `"${remoteCmdPrefix} django-admin load_daily_turns_absence --route=${escapeShellArg(
             fileName
           )}"`,
         ],
@@ -199,46 +207,36 @@ ipcMain.handle("run-process", async (event, { fileName, operativo }) => {
     sendLog("stderr", err?.message || String(err), wc);
     return { status: "error", message: err?.message ?? String(err) };
   } finally {
+    // Limpieza de archivos .xlsx en remoto
+    const cleanupCommand = `cd ${rootPath} && rm ${escapeShellArg(fileName)}`;
     if (operativo) {
       sendLog("stdout", "Limpieza de archivos .xlsx en remoto (Operativo)", wc);
-      // Limpieza .xlsx (OPERATIVO)
-      await runWithLogs(
-        "ssh",
-        [
-          "-T", // no pidas TTY
-          remoteHost,
-          "bash",
-          "-lc", // login shell no interactiva
-          `"cd ${remoteDirectory} && rm ${escapeShellArg(fileName)}"`,
-        ],
-        {},
-        wc
-      );
     } else {
-      sendLog(
-        "stdout",
-        "Limpieza de archivos .xlsx en remoto (No Operativo)",
-        wc
-      );
-      // Limpieza .xlsx (NO OPERATIVO)
-      await runWithLogs(
-        "ssh",
-        [
-          "-T",
-          remoteHost,
-          "bash",
-          "-lc",
-          `"cd ${remoteDirectory} && rm ${escapeShellArg(fileName)}"`,
-        ],
-        {},
-        wc
-      );
+      sendLog("stdout", "Limpieza de archivos .xlsx en remoto (No Operativo)", wc);
     }
+    await runWithLogs(
+      "ssh",
+      [
+        "-T", // no pidas TTY
+        host,
+        "bash",
+        "-lc", // login shell no interactiva
+        `"${cleanupCommand}"`,
+      ],
+      {},
+      wc
+    );
   }
 });
 
 // ---------- Backup opcional ----------
-ipcMain.handle("backup", async (event) => {
+ipcMain.handle("backup", async (event, host, rootPath, environmentPath, settingsModule) => {
+  const remoteHost = host;
+  const remoteRootPath = rootPath;
+  const remoteEnvironmentPath = environmentPath;
+  const remoteSettingsModule = settingsModule;
+  const backupCommand = `PGPASSWORD=${dbPassword} pg_dump -h ${dbHost} -U ${dbUsername} -d ${dbName} --no-owner --no-privileges > ~/backup-${year}-${month}-${day}.sql`;
+
   const wc = event.sender;
   try {
     await runWithLogs(
@@ -255,7 +253,10 @@ ipcMain.handle("backup", async (event) => {
 });
 
 // --- listar backups remotos ~/backups-*.sql ---
-ipcMain.handle("list-backups", async () => {
+ipcMain.handle("list-backups", async (event, host) => {
+  console.log(`Listar backups para host: ${host}`);
+  if (!host) return { status: "error", message: "No host selected" };
+  const wc = event.sender;
   // Un (1) único string para bash -lc:
   const script = [
     "shopt -s nullglob",
@@ -265,7 +266,7 @@ ipcMain.handle("list-backups", async () => {
   try {
     const { stdout } = await runCapture("ssh", [
       "-T",
-      remoteHost,
+      host,
       "bash",
       "-lc",
       script, // <-- todo el script como UN solo argumento
@@ -292,26 +293,209 @@ ipcMain.handle("list-backups", async () => {
 });
 
 // --- eliminar backup remoto ---
-ipcMain.handle("delete-backup", async (_event, fileName) => {
+ipcMain.handle("delete-backup", async (event, fileName, host) => {
+  const wc = event.sender;
   if (!fileName)
     return { status: "error", message: "No se especificó archivo" };
 
   const script = `"rm -f ~/${fileName}"`;
   try {
-    await runWithLogs("ssh", ["-T", remoteHost, "bash", "-lc", script]);
+    await runWithLogs("ssh", ["-T", host, "bash", "-lc", script]);
     return { status: "ok", file: fileName };
   } catch (err) {
     return { status: "error", message: err?.message ?? String(err) };
   }
 });
 
-// --- Limpiar caché de la app ---
-ipcMain.handle("clear-cache", async (_event) => {
-  const script = `"${venv} django-admin shell -c 'from business_logic.redis import r; r.flushdb(asynchronous=True)'"`;
+// --- descargar backup ---
+// --- descargar backup ---
+ipcMain.handle("download-backup", async (event, fileName, host) => {
+  const wc = event.sender;
+  if (!fileName)
+    return { status: "error", message: "No se especificó archivo" };
+
+  // Crear una carpeta backups en Downloads si no existe
+  const filePath = path.join(os.homedir(), "Downloads", "backups");
+  if (!fs.existsSync(filePath)) {
+    fs.mkdirSync(filePath);
+  }
+
   try {
-    await runWithLogs("ssh", ["-T", remoteHost, "bash", "-lc", script]);
-    return { status: "ok", message: "Caché limpiada" };
+    // Attempt to use rsync for progress bar support
+    let useRsync = false;
+    try {
+      await runCapture("which", ["rsync"]);
+      useRsync = true;
+    } catch (e) {
+      useRsync = false;
+    }
+
+    if (useRsync) {
+      // rsync -avP -e "ssh" host:~/file local/
+      // Note: rsync needs to run in a shell for some expansions, but here we can pass direct args
+      await runWithLogs("rsync", ["-avP", "-e", "ssh", `${host}:~/${fileName}`, filePath], {}, wc);
+    } else {
+      // Fallback to SCP (might not show progress bar if not TTY)
+      await runWithLogs("scp", [`${host}:~/${fileName}`, filePath], {}, wc);
+    }
+
+    return { status: "ok", file: fileName };
   } catch (err) {
     return { status: "error", message: err?.message ?? String(err) };
   }
 });
+
+// --- limpiar cache (ej: Redis) ---
+ipcMain.handle("clear-cache", async (event, host, rootPath, environmentPath, settingsModule) => {
+  const wc = event.sender;
+  if (!host) return { status: "error", message: "No host selected" };
+  // Ajusta según tu necesidad real
+  // Ejemplo: ssh -T EC2-PROD-Private 'bash -lc "source /home/ec2-user/k2-backend/app/.venv/bin/activate && cd /home/ec2-user/k2-backend/app && export PYTHONPATH=/home/ec2-user/k2-backend/app && export DJANGO_SETTINGS_MODULE=dao.core.settings && django-admin shell -c \"from business_logic.redis import r; r.flushdb(asynchronous=True)\""'
+  const remoteCmdPrefix = `source ${environmentPath} && cd ${rootPath} && export PYTHONPATH=${rootPath} && export DJANGO_SETTINGS_MODULE=${settingsModule} && `;
+  const script = `"${remoteCmdPrefix} django-admin shell -c 'from business_logic.redis import r; r.flushdb(asynchronous=True)'"`;
+  try {
+    await runWithLogs("ssh", ["-T", host, "bash", "-lc", script], {}, wc);
+    return { status: "ok" };
+  } catch (err) {
+    return { status: "error", message: err?.message || String(err) };
+  }
+});
+
+// --- leer ~/.ssh/config ---
+ipcMain.handle("ssh-config:read", async () => {
+  try {
+    const sshConfigPath = path.join(os.homedir(), ".ssh", "config");
+    // Verificar si existe
+    try {
+      await fsPromises.access(sshConfigPath, fs.constants.R_OK);
+    } catch {
+      return { status: "error", message: "No se encontró el archivo de configuración SSH (~/.ssh/config)" };
+    }
+
+    const content = await fsPromises.readFile(sshConfigPath, "utf8");
+    return { status: "ok", content };
+  } catch (err) {
+    return { status: "error", message: err?.message ?? String(err) };
+  }
+});
+
+// --- probar conexión ssh ---
+ipcMain.handle("ssh:test", async (_event, host) => {
+  if (!host) return { status: "error", message: "No host selected" };
+  // ssh -T <host> "echo ok"
+  try {
+    // Timeout de 10s para evitar que se cuelgue
+    const child = spawn("ssh", ["-T", host, "echo ok"], { timeout: 10000 });
+
+    return new Promise((resolve) => {
+      let errData = "";
+      child.stderr.on("data", (d) => errData += d.toString());
+
+      child.on("close", (code) => {
+        if (code === 0) {
+          resolve({ status: "ok", message: "Conexión exitosa" });
+        } else {
+          resolve({ status: "error", message: `Fallo conexión (code ${code}): ${errData}` });
+        }
+      });
+      child.on("error", (err) => {
+        resolve({ status: "error", message: err.message });
+      });
+    });
+  } catch (err) {
+    return { status: "error", message: err.message };
+  }
+});
+
+// --- obtener espacio en disco ---
+ipcMain.handle("ssh:disk-usage", async (_event, host) => {
+  if (!host) return { status: "error", message: "No host selected" };
+  // df -h / | tail -1 | awk '{print $5}'
+  try {
+    const child = spawn("ssh", [host, "df -h / | tail -1 | awk '{print $5}'"]);
+
+    return new Promise((resolve) => {
+      let output = "";
+      let errData = "";
+
+      child.stdout.on("data", (d) => output += d.toString());
+      child.stderr.on("data", (d) => errData += d.toString());
+
+      child.on("close", (code) => {
+        if (code === 0) {
+          console.log(`Disk usage: ${output.trim()}`);
+          resolve({ status: "ok", usage: output.trim() });
+        } else {
+          resolve({ status: "error", message: `Error obtaining disk usage: ${errData}` });
+        }
+      });
+      child.on("error", (err) => resolve({ status: "error", message: err.message }));
+    });
+  } catch (err) {
+    return { status: "error", message: err.message };
+  }
+})
+
+// --- abrir y leer excel ---
+ipcMain.handle("excel:open-and-read", async (_event, file, host) => {
+  try {
+    console.log("excel:open-and-read");
+    console.log(file);
+    const workbook = XLSX.readFile(file, { cellDates: true });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(worksheet);
+    const data_ = data.map((item) => {
+      // aqui llega yyyy/mm/dd con dayjs leer fecha inicio con ese formato
+      item["Fecha Inicio"] = dayjs(item["Fecha Inicio"]).format("YYYY-MM-DD");
+      return item;
+    })
+    console.log("***************");
+    const dataFromDb = await getDataFromDb(host)
+    console.log(dataFromDb)
+    console.log("***************");
+    return { status: "ok", data: data_ };
+  } catch (err) {
+    console.error("Error in excel:open-and-read:", err);
+    return { status: "error", message: err.message };
+  }
+})
+
+
+async function getDataFromDb(host) {
+  const sshProc = await tunnel(host, dbHost);
+
+  const client = await dbConnect(dbUsername, dbPassword, dbName);
+
+  // Verificar conexión
+  const result = await client.query(`
+    SELECT 
+      now() as time, 
+      current_database() as database,
+      current_user as user,
+      version() as version
+  `);
+
+  console.log("✅ Database connection successful!");
+  // console.log(`   Time: ${result.rows[0].time}`);
+  // console.log(`   Database: ${result.rows[0].database}`);
+  // console.log(`   User: ${result.rows[0].user}`);
+  // console.log(`   PostgreSQL: ${result.rows[0].version.split(',')[0]}`);
+  client.end();
+  sshProc.kill();
+  return result.rows[0];
+  // const result_users = await client.query(`
+  //   SELECT begin_turn_datetime, end_turn_datetime, turn_type, dynamic_turn_status, dynamic_turn_work_status
+  //   FROM hng_dynamic_turn 
+  //   where begin_turn_datetime::date = current_date
+  //   order by begin_turn_datetime asc
+  // `);
+  // console.log(result_users.rows.map(row => ({
+  //   begin_turn_datetime: dayjs(row.begin_turn_datetime).format('YYYY-MM-DD HH:mm:ss'),
+  //   end_turn_datetime: dayjs(row.end_turn_datetime).format('YYYY-MM-DD HH:mm:ss'),
+  //   turn_type: row.turn_type,
+  //   dynamic_turn_status: row.dynamic_turn_status,
+  //   dynamic_turn_work_status: row.dynamic_turn_work_status
+  // })));
+
+}
